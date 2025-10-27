@@ -1,0 +1,34 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@media print {
+  body {
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+  .no-print {
+    display: none;
+  }
+}
+
+body.print-friendly {
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+}
+
+/* A4 Page container for preview and PDF generation */
+.A4-page {
+  width: 595px;
+  height: 842px;
+  overflow: hidden;
+  page-break-after: always;
+}
+
+/* Hidden container for measuring element heights */
+.measurement-container {
+  position: absolute;
+  top: -9999px;
+  left: -9999px;
+  visibility: hidden;
+}
