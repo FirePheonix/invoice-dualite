@@ -27,7 +27,7 @@ const InvoicePage: React.FC<InvoicePageProps> = ({ invoiceData, items, pageNumbe
                 <img src="/assets/logo-dualite.png" alt="Company Logo" className="h-16 w-16 object-contain" />
                 <div className="ml-4 flex-1">
                   {/* Company Details Column */}
-                  <div className="py-8 space-y-1 py-">
+                  <div className="space-y-1 py-12">
                     <p className="font-bold leading-relaxed">{company.name}</p>
                     <p className="leading-relaxed">{company.address}</p>
                     <p className="leading-relaxed">{company.location}</p>
@@ -51,7 +51,7 @@ const InvoicePage: React.FC<InvoicePageProps> = ({ invoiceData, items, pageNumbe
                   </div>
                 </div>
               </div>
-              <div className="text-left px-14 space-y-1 py-14">
+              <div className="text-left px-14 space-y-1 py-12">
                 <p className="font-normal leading-relaxed">Invoice No.</p>
                 <p className="font-bold leading-relaxed ">{invoice.number}</p>
                 <p className="font-normal leading-relaxed">Dated</p>
