@@ -53,7 +53,7 @@ export const getNextInvoiceNumber = (type: 'plan' | 'addon' = 'plan'): string =>
     const invoices = getInvoiceHistory();
     let highestNumber = 210; // Default starting number
     
-    // Find the highest invoice number from existing invoices
+    // Find the highest invoice number from existing invoices (regardless of type)
     invoices.forEach(invoice => {
       const match = invoice.invoiceData.invoice.number.match(/A(\d+)$/);
       if (match) {
@@ -64,12 +64,7 @@ export const getNextInvoiceNumber = (type: 'plan' | 'addon' = 'plan'): string =>
       }
     });
     
-    // Also check the counter from localStorage as fallback
-    const storedCounter = parseInt(localStorage.getItem(COUNTER_KEY) || '210', 10);
-    if (storedCounter > highestNumber) {
-      highestNumber = storedCounter;
-    }
-    
+    // Always return highest + 1
     const nextNumber = highestNumber + 1;
     localStorage.setItem(COUNTER_KEY, nextNumber.toString());
     
@@ -78,7 +73,7 @@ export const getNextInvoiceNumber = (type: 'plan' | 'addon' = 'plan'): string =>
   } catch (error) {
     console.error('Error generating invoice number:', error);
     const prefix = type === 'addon' ? 'DTPL-ADDON/25-26/A' : 'DTPL/25-26/A';
-    return `${prefix}00210`;
+    return `${prefix}00211`;
   }
 };
 

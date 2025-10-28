@@ -34,25 +34,28 @@ export const createInitialInvoiceData = (type: 'plan' | 'addon', currency: 'USD'
       {
         id: 1,
         srNo: 1,
-        description: type === 'addon' ? "Dualite Alpha Add-on" : "Dualite Alpha Pro Plan",
-        subscription: type === 'addon' ? "Additional Services" : "Pro-Monthly",
-        period: "3 October, 2025 to 3 November, 2025",
+        description: type === 'addon' ? "Dualite Alpha Pro Plan" : "Dualite Alpha Pro Plan",
+        subscription: type === 'addon' ? "" : "Pro-Monthly",
+        period: type === 'addon' ? "" : "3 October, 2025 to 3 November, 2025",
         features: type === 'addon' 
-          ? ["Additional storage", "Priority support", "Custom integrations"] 
+          ? ["300 Messages, Top-up"] 
           : ["200 messages", "Figma Import", "Github Import", "Premium e-mail support"],
         hsnSac: "998313",
         gstRate: "NA",
         qty: 1,
-        rate: 29,
+        rate: 39,
         per: "Nos",
-        amount: 29,
+        amount: 39,
       },
     ],
     summary: {
-      grossAmount: 29,
+      grossAmount: 39,
       cgst: "-",
+      sgst: "-",
       igst: "-",
-      total: 29,
+      total: 39,
+      applyTax: false,
+      taxType: 'no_tax' as const,
     },
     bankDetails: {
       holderName: "Dualite Technology Private Limited",

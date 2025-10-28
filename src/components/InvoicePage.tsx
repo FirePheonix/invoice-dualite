@@ -27,7 +27,7 @@ const InvoicePage: React.FC<InvoicePageProps> = ({ invoiceData, items, pageNumbe
                 <img src="/assets/logo-dualite.png" alt="Company Logo" className="h-16 w-16 object-contain" />
                 <div className="ml-4 flex-1">
                   {/* Company Details Column */}
-                  <div className="space-y-1 py-12">
+                  <div className="py-8 space-y-1">
                     <p className="font-bold leading-relaxed">{company.name}</p>
                     <p className="leading-relaxed">{company.address}</p>
                     <p className="leading-relaxed">{company.location}</p>
@@ -51,7 +51,7 @@ const InvoicePage: React.FC<InvoicePageProps> = ({ invoiceData, items, pageNumbe
                   </div>
                 </div>
               </div>
-              <div className="text-left px-14 space-y-1 py-12">
+              <div className="text-left px-14 space-y-1 py-14">
                 <p className="font-normal leading-relaxed">Invoice No.</p>
                 <p className="font-bold leading-relaxed ">{invoice.number}</p>
                 <p className="font-normal leading-relaxed">Dated</p>
@@ -91,8 +91,8 @@ const InvoicePage: React.FC<InvoicePageProps> = ({ invoiceData, items, pageNumbe
                 <div className="col-span-1 text-center">{item.srNo}</div>
                 <div className="col-span-4">
                   <div className="font-medium">{item.description}</div>
-                  <div className="font-medium">{item.subscription}</div>
-                  <div className="mt-1 mb-2">{item.period}</div>
+                  {item.subscription && <div className="font-medium">{item.subscription}</div>}
+                  {item.period && <div className="mt-1 mb-2">{item.period}</div>}
                   <div className="space-y-0">
                     {item.features.map((feature, i) => (
                       <div key={i}>{feature}</div>
@@ -101,7 +101,7 @@ const InvoicePage: React.FC<InvoicePageProps> = ({ invoiceData, items, pageNumbe
                 </div>
                 <div className="col-span-1 text-center">{item.hsnSac}</div>
                 <div className="col-span-1 text-center">{item.gstRate}</div>
-                <div className="col-span-1 text-center">{item.qty} {item.per}</div>
+                <div className="col-span-1 text-center">{item.qty}</div>
                 <div className="col-span-1 text-center">{formatCurrency(item.rate, invoiceData.currency)}</div>
                 <div className="col-span-1 text-center">{item.per}</div>
                 <div className="col-span-2 text-right font-bold">{formatCurrency(item.amount, invoiceData.currency)}</div>
@@ -120,6 +120,11 @@ const InvoicePage: React.FC<InvoicePageProps> = ({ invoiceData, items, pageNumbe
                   <div className="col-span-1"></div>
                   <div className="col-span-9 font-bold">CGST</div>
                   <div className="col-span-2 text-right">{summary.cgst}</div>
+                </div>
+                <div className="grid grid-cols-12 gap-2 py-0.2">
+                  <div className="col-span-1"></div>
+                  <div className="col-span-9 font-bold">SGST</div>
+                  <div className="col-span-2 text-right">{summary.sgst}</div>
                 </div>
                 <div className="grid grid-cols-12 gap-2 py-1">
                   <div className="col-span-1"></div>

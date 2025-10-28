@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect } from 'react';
 import { InvoiceData } from './types/invoice';
 import { createInitialInvoiceData } from './data/initialData';
-import { getPlanPrice } from './utils/pricing';
+import { getPlanPrice, calculateTaxWithType, formatTaxAmount, detectPlanTypeFromDescription } from './utils/pricing';
 import { getNextInvoiceNumber, saveInvoiceToHistory, type StoredInvoice } from './data/invoiceHistory';
 import InvoiceForm from './components/InvoiceForm';
 import InvoicePreview from './components/InvoicePreview';
@@ -9,7 +9,7 @@ import ClientsPanel from './components/ClientsPanel';
 import InvoiceHistory from './components/InvoiceHistory';
 import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';
-import { Download, History, Plus } from 'lucide-react';
+import { Download, Plus } from 'lucide-react';
 
 function App() {
   const [currentView, setCurrentView] = useState<'invoice' | 'history'>('invoice');
@@ -18,7 +18,7 @@ function App() {
   const [currency, setCurrency] = useState<'USD' | 'INR'>('USD');
   const [invoiceData, setInvoiceData] = useState<InvoiceData>(() => {
     const initial = createInitialInvoiceData(invoiceType, currency);
-    // Set automatic invoice number
+    // Use the initial number and only increment if it conflicts
     return {
       ...initial,
       invoice: {
@@ -39,28 +39,38 @@ function App() {
     }));
 
     const grossAmount = updatedItems.reduce((sum, item) => sum + item.amount, 0);
-    const total = grossAmount; // Assuming no taxes for now
+    
+    // Detect plan type from first item description
+    const planType = invoiceData.items.length > 0 ? 
+      detectPlanTypeFromDescription(invoiceData.items[0].description) : 
+      'PRO_MONTHLY_INR';
+    
+    // Calculate tax based on tax type and settings
+    const taxCalc = calculateTaxWithType(invoiceData.summary.taxType, invoiceData.summary.applyTax, invoiceData.currency, planType);
 
     // Use a functional update to avoid stale state, but check for actual changes
     // to prevent infinite loops.
     setInvoiceData(prev => {
       const needsUpdate = JSON.stringify(prev.items) !== JSON.stringify(updatedItems) ||
                           prev.summary.grossAmount !== grossAmount ||
-                          prev.summary.total !== total;
+                          prev.summary.total !== taxCalc.total;
       if (needsUpdate) {
         return {
           ...prev,
           items: updatedItems,
           summary: {
             ...prev.summary,
-            grossAmount,
-            total,
+            grossAmount: taxCalc.subtotal,
+            cgst: formatTaxAmount(taxCalc.cgst, invoiceData.currency),
+            sgst: formatTaxAmount(taxCalc.sgst, invoiceData.currency),
+            igst: formatTaxAmount(taxCalc.igst, invoiceData.currency),
+            total: taxCalc.total,
           },
         };
       }
       return prev;
     });
-  }, [invoiceData.items]);
+  }, [invoiceData.items, invoiceData.buyer.stateCode, invoiceData.currency]);
 
 
   const handleDataChange = (updateFn: (prev: InvoiceData) => InvoiceData) => {
@@ -73,15 +83,25 @@ function App() {
       }));
 
       const grossAmount = updatedItems.reduce((sum, item) => sum + item.amount, 0);
-      const total = grossAmount;
+      
+      // Detect plan type from first item description
+      const planType = newData.items.length > 0 ? 
+        detectPlanTypeFromDescription(newData.items[0].description) : 
+        'PRO_MONTHLY_INR';
+      
+      // Calculate tax based on tax type and settings
+      const taxCalc = calculateTaxWithType(newData.summary.taxType, newData.summary.applyTax, newData.currency, planType);
 
       return {
         ...newData,
         items: updatedItems,
         summary: {
           ...newData.summary,
-          grossAmount,
-          total,
+          grossAmount: taxCalc.subtotal,
+          cgst: formatTaxAmount(taxCalc.cgst, newData.currency),
+          sgst: formatTaxAmount(taxCalc.sgst, newData.currency),
+          igst: formatTaxAmount(taxCalc.igst, newData.currency),
+          total: taxCalc.total,
         }
       };
     });
@@ -147,25 +167,30 @@ function App() {
 
   const handleInvoiceTypeChange = (type: 'plan' | 'addon') => {
     setInvoiceType(type);
-    handleDataChange(prev => {
-      const updatedItems = updateItemPricing(prev.items, prev.currency);
-      const grossAmount = updatedItems.reduce((sum, item) => sum + item.amount, 0);
-      
-      return {
-        ...prev,
-        type: type,
-        items: updatedItems,
-        // Generate new invoice number only if not in preview mode
-        invoice: {
-          ...prev.invoice,
-          number: isPreviewMode ? prev.invoice.number : getNextInvoiceNumber(type)
-        },
-        summary: {
-          ...prev.summary,
-          grossAmount,
-          total: grossAmount,
-        }
-      };
+    
+    // Don't change the invoice structure if we're in preview mode
+    if (isPreviewMode) {
+      return;
+    }
+    
+    // Create fresh data for the new invoice type
+    const newInvoiceData = createInitialInvoiceData(type, currency);
+    setInvoiceData({
+      ...newInvoiceData,
+      // Preserve some existing data
+      company: invoiceData.company,
+      buyer: invoiceData.buyer,
+      bankDetails: invoiceData.bankDetails,
+      declaration: invoiceData.declaration,
+      signatory: invoiceData.signatory,
+      invoice: {
+        ...newInvoiceData.invoice,
+        number: getNextInvoiceNumber(type),
+        date: invoiceData.invoice.date,
+        modeOfPayment: invoiceData.invoice.modeOfPayment,
+        reference: invoiceData.invoice.reference,
+        referenceDate: invoiceData.invoice.referenceDate,
+      }
     });
   };
 

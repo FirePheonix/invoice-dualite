@@ -46,8 +46,11 @@ export interface InvoiceData {
   summary: {
     grossAmount: number;
     cgst: string;
+    sgst: string;
     igst: string;
     total: number;
+    applyTax: boolean;
+    taxType: 'rajasthan' | 'other_state' | 'no_tax';
   };
   bankDetails: {
     holderName: string;
