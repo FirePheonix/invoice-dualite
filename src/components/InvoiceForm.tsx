@@ -123,6 +123,21 @@ const InvoiceForm: React.FC<InvoiceFormProps> = ({
         handleItemChange(firstItemId, 'rate', plan.basePrice);
         handleItemChange(firstItemId, 'description', plan.description);
         
+        // Update features based on plan type
+        if (type === 'addon') {
+          // For addons, keep the main service description but show the addon as feature
+          handleItemChange(firstItemId, 'description', 'Dualite Alpha Pro Plan');
+          handleItemChange(firstItemId, 'features', [plan.name]);
+        } else {
+          // For plans, set the plan as description with appropriate features
+          const planFeatures = plan.name.includes('Pro') 
+            ? ["200 messages", "Figma Import", "Github Import", "Premium e-mail support"]
+            : plan.name.includes('Launch')
+            ? ["500 messages", "Figma Import", "Github Import", "Premium e-mail support", "Priority support"]
+            : ["Basic features"];
+          handleItemChange(firstItemId, 'features', planFeatures);
+        }
+        
         // Set tax applicability based on plan
         if ('taxApplicable' in plan) {
           handleChange('summary', 'applyTax', plan.taxApplicable);
