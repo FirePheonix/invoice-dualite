@@ -1,7 +1,6 @@
 import { useState, useRef, useEffect } from 'react';
 import { InvoiceData } from './types/invoice';
 import { createInitialInvoiceData } from './data/initialData';
-import { getPlanPrice, calculateTaxWithType, formatTaxAmount, detectPlanTypeFromDescription } from './utils/pricing';
 import { getNextInvoiceNumber, saveInvoiceToHistory, type StoredInvoice } from './data/invoiceHistory';
 import InvoiceForm from './components/InvoiceForm';
 import InvoicePreview from './components/InvoicePreview';
@@ -16,6 +15,7 @@ function App() {
   const [isPreviewMode, setIsPreviewMode] = useState(false);
   const [invoiceType, setInvoiceType] = useState<'plan' | 'addon'>('plan');
   const [currency, setCurrency] = useState<'USD' | 'INR'>('USD');
+  const [serviceType, setServiceType] = useState<'regular' | 'figma'>('regular');
   const [invoiceData, setInvoiceData] = useState<InvoiceData>(() => {
     const initial = createInitialInvoiceData(invoiceType, currency);
     // Use the initial number and only increment if it conflicts
@@ -31,80 +31,27 @@ function App() {
   const [isDownloading, setIsDownloading] = useState(false);
   const [clientsOpen, setClientsOpen] = useState(false);
 
-  // This effect recalculates totals whenever the source data changes.
+  // Simple effect to update item amounts - let InvoiceForm handle tax calculations
   useEffect(() => {
     const updatedItems = invoiceData.items.map(item => ({
       ...item,
       amount: item.qty * item.rate,
     }));
 
-    const grossAmount = updatedItems.reduce((sum, item) => sum + item.amount, 0);
+    // Only update if items actually changed
+    const itemsChanged = JSON.stringify(invoiceData.items) !== JSON.stringify(updatedItems);
     
-    // Detect plan type from first item description
-    const planType = invoiceData.items.length > 0 ? 
-      detectPlanTypeFromDescription(invoiceData.items[0].description) : 
-      'PRO_MONTHLY_INR';
-    
-    // Calculate tax based on tax type and settings
-    const taxCalc = calculateTaxWithType(invoiceData.summary.taxType, invoiceData.summary.applyTax, invoiceData.currency, planType);
-
-    // Use a functional update to avoid stale state, but check for actual changes
-    // to prevent infinite loops.
-    setInvoiceData(prev => {
-      const needsUpdate = JSON.stringify(prev.items) !== JSON.stringify(updatedItems) ||
-                          prev.summary.grossAmount !== grossAmount ||
-                          prev.summary.total !== taxCalc.total;
-      if (needsUpdate) {
-        return {
-          ...prev,
-          items: updatedItems,
-          summary: {
-            ...prev.summary,
-            grossAmount: taxCalc.subtotal,
-            cgst: formatTaxAmount(taxCalc.cgst, invoiceData.currency),
-            sgst: formatTaxAmount(taxCalc.sgst, invoiceData.currency),
-            igst: formatTaxAmount(taxCalc.igst, invoiceData.currency),
-            total: taxCalc.total,
-          },
-        };
-      }
-      return prev;
-    });
-  }, [invoiceData.items, invoiceData.buyer.stateCode, invoiceData.currency]);
+    if (itemsChanged) {
+      setInvoiceData(prev => ({
+        ...prev,
+        items: updatedItems,
+      }));
+    }
+  }, [invoiceData.items]);
 
 
   const handleDataChange = (updateFn: (prev: InvoiceData) => InvoiceData) => {
-    setInvoiceData(prevData => {
-      const newData = updateFn(prevData);
-
-      const updatedItems = newData.items.map(item => ({
-        ...item,
-        amount: item.qty * item.rate
-      }));
-
-      const grossAmount = updatedItems.reduce((sum, item) => sum + item.amount, 0);
-      
-      // Detect plan type from first item description
-      const planType = newData.items.length > 0 ? 
-        detectPlanTypeFromDescription(newData.items[0].description) : 
-        'PRO_MONTHLY_INR';
-      
-      // Calculate tax based on tax type and settings
-      const taxCalc = calculateTaxWithType(newData.summary.taxType, newData.summary.applyTax, newData.currency, planType);
-
-      return {
-        ...newData,
-        items: updatedItems,
-        summary: {
-          ...newData.summary,
-          grossAmount: taxCalc.subtotal,
-          cgst: formatTaxAmount(taxCalc.cgst, newData.currency),
-          sgst: formatTaxAmount(taxCalc.sgst, newData.currency),
-          igst: formatTaxAmount(taxCalc.igst, newData.currency),
-          total: taxCalc.total,
-        }
-      };
-    });
+    setInvoiceData(updateFn);
   };
 
   const handleDownloadPdf = async () => {
@@ -167,6 +114,7 @@ function App() {
 
   const handleInvoiceTypeChange = (type: 'plan' | 'addon') => {
     setInvoiceType(type);
+    setServiceType('regular'); // Reset service type
     
     // Don't change the invoice structure if we're in preview mode
     if (isPreviewMode) {
@@ -194,46 +142,32 @@ function App() {
     });
   };
 
-  const updateItemPricing = (items: any[], currency: 'USD' | 'INR') => {
-    return items.map(item => {
-      let newRate = item.rate;
-      
-      // Map subscription types to pricing plans
-      if (item.subscription?.toLowerCase().includes('pro-monthly') || item.subscription?.toLowerCase().includes('pro monthly')) {
-        newRate = getPlanPrice('PRO_MONTHLY', currency);
-      } else if (item.subscription?.toLowerCase().includes('pro-annual') || item.subscription?.toLowerCase().includes('pro annual')) {
-        newRate = getPlanPrice('PRO_ANNUAL', currency);
-      } else if (item.subscription?.toLowerCase().includes('launch-monthly') || item.subscription?.toLowerCase().includes('launch monthly')) {
-        newRate = getPlanPrice('LAUNCH_MONTHLY', currency);
-      } else if (item.subscription?.toLowerCase().includes('launch-annual') || item.subscription?.toLowerCase().includes('launch annual')) {
-        newRate = getPlanPrice('LAUNCH_ANNUAL', currency);
-      }
-      
-      return {
-        ...item,
-        rate: newRate,
-        amount: item.qty * newRate
-      };
-    });
-  };
+
 
   const handleCurrencyChange = (newCurrency: 'USD' | 'INR') => {
     setCurrency(newCurrency);
-    handleDataChange(prev => {
-      const updatedItems = updateItemPricing(prev.items, newCurrency);
-      const grossAmount = updatedItems.reduce((sum, item) => sum + item.amount, 0);
-      
-      return {
-        ...prev,
-        currency: newCurrency,
-        items: updatedItems,
-        summary: {
-          ...prev.summary,
-          grossAmount,
-          total: grossAmount,
-        }
-      };
-    });
+    setServiceType('regular'); // Reset service type
+    handleDataChange(prev => ({
+      ...prev,
+      currency: newCurrency,
+      // Reset plans when currency changes - user will need to reselect
+      items: prev.items.map(item => ({
+        ...item,
+        rate: 0,
+        amount: 0,
+        description: 'Select a plan'
+      })),
+      summary: {
+        ...prev.summary,
+        grossAmount: 0,
+        cgst: '0',
+        sgst: '0', 
+        igst: '0',
+        total: 0,
+        applyTax: false,
+        taxType: 'no_tax'
+      }
+    }));
   };
 
   const handleViewInvoice = (storedInvoice: StoredInvoice) => {
@@ -253,6 +187,7 @@ function App() {
         number: getNextInvoiceNumber(invoiceType)
       }
     });
+    setServiceType('regular'); // Reset service type
     setIsPreviewMode(false); // Exit preview mode when creating new invoice
     setCurrentView('invoice');
   };
@@ -397,7 +332,12 @@ function App() {
             // Edit mode - show form and preview side by side
             <div className="grid grid-cols-1 lg:grid-cols-5 gap-8">
               <div className="lg:col-span-2">
-                <InvoiceForm invoiceData={invoiceData} onDataChange={handleDataChange} />
+                <InvoiceForm 
+                  invoiceData={invoiceData} 
+                  onDataChange={handleDataChange}
+                  serviceType={serviceType}
+                  onServiceTypeChange={setServiceType}
+                />
               </div>
               <div className="lg:col-span-3">
                  <div className="sticky top-24">
