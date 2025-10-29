@@ -25,7 +25,7 @@ const InvoicePage: React.FC<InvoicePageProps> = ({ invoiceData, items, pageNumbe
             <div className="flex justify-between items-start">
               <div className="flex items-start">
                 <img src="/assets/logo-dualite.png" alt="Company Logo" className="h-16 w-16 object-contain" />
-                <div className="ml-4 flex-1">
+                <div className="ml-4 flex-1 py-6">
                   {/* Company Details Column */}
                   <div className="py-8 space-y-1">
                     <p className="font-bold leading-relaxed">{company.name}</p>
