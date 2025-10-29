@@ -4,7 +4,7 @@ import { Input } from './ui/Input';
 import { Textarea } from './ui/Textarea';
 import { PlusCircle, Trash2 } from 'lucide-react';
 import { amountToWords } from 'amount-to-words';
-import { getAvailablePlans, getPlanById, calculateTaxForPlan, formatTaxAmount, type ServiceType, type PlanData } from '../data/planUtils';
+import { getAvailablePlans, getPlanById, calculateTaxForPlan, formatTaxAmount } from '../data/planUtils';
 import { PlanRegularINR } from '../data/planRegularINR';
 
 interface InvoiceFormProps {
@@ -196,6 +196,43 @@ const InvoiceForm: React.FC<InvoiceFormProps> = ({
     }));
   };
 
+  const handleBuyerFieldChange = (fieldId: string, property: 'label' | 'value', newValue: string) => {
+    onDataChange(prev => ({
+      ...prev,
+      buyer: {
+        ...prev.buyer,
+        fields: prev.buyer.fields.map(field => 
+          field.id === fieldId ? { ...field, [property]: newValue } : field
+        )
+      }
+    }));
+  };
+
+  const handleAddBuyerField = () => {
+    const newFieldId = `field_${Date.now()}`;
+    onDataChange(prev => ({
+      ...prev,
+      buyer: {
+        ...prev.buyer,
+        fields: [...prev.buyer.fields, {
+          id: newFieldId,
+          label: 'New Field',
+          value: ''
+        }]
+      }
+    }));
+  };
+
+  const handleRemoveBuyerField = (fieldId: string) => {
+    onDataChange(prev => ({
+      ...prev,
+      buyer: {
+        ...prev.buyer,
+        fields: prev.buyer.fields.filter(field => field.id !== fieldId)
+      }
+    }));
+  };
+
   return (
     <div className="space-y-6 bg-white p-6 rounded-lg shadow-md">
       {/* Service Type Toggle */}
@@ -294,13 +331,41 @@ const InvoiceForm: React.FC<InvoiceFormProps> = ({
       )}
 
       <FormSection title="Buyer Details">
-        <Input label="Buyer Name" value={invoiceData.buyer.name} onChange={e => handleChange('buyer', 'name', e.target.value)} />
-        <Input label="Address" value={invoiceData.buyer.address} onChange={e => handleChange('buyer', 'address', e.target.value)} />
-        <Input label="Country" value={invoiceData.buyer.country} onChange={e => handleChange('buyer', 'country', e.target.value)} />
-        <Input label="State" value={invoiceData.buyer.state} onChange={e => handleChange('buyer', 'state', e.target.value)} />
-        <Input label="State Code" value={invoiceData.buyer.stateCode} onChange={e => handleChange('buyer', 'stateCode', e.target.value)} />
-        <Input label="Email" value={invoiceData.buyer.email} onChange={e => handleChange('buyer', 'email', e.target.value)} />
-        <Input label="Buyer ID" value={invoiceData.buyer.id} onChange={e => handleChange('buyer', 'id', e.target.value)} />
+        {invoiceData.buyer.fields.map((field) => (
+          <div key={field.id} className="flex items-center gap-2">
+            <div className="flex-1">
+              <Input 
+                label={field.label} 
+                value={field.value} 
+                onChange={e => handleBuyerFieldChange(field.id, 'value', e.target.value)} 
+              />
+            </div>
+            <div className="w-32">
+              <label className="block text-sm font-medium text-gray-700 mb-2">Label</label>
+              <input
+                type="text"
+                value={field.label}
+                onChange={e => handleBuyerFieldChange(field.id, 'label', e.target.value)}
+                className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+                placeholder="Field label"
+              />
+            </div>
+            <button
+              onClick={() => handleRemoveBuyerField(field.id)}
+              className="mt-6 p-2 text-red-500 hover:text-red-700 transition-colors"
+              title="Remove field"
+            >
+              <Trash2 size={16} />
+            </button>
+          </div>
+        ))}
+        <button
+          onClick={handleAddBuyerField}
+          className="flex items-center gap-2 w-full justify-center px-4 py-2 border border-dashed border-gray-300 text-gray-600 font-semibold rounded-lg hover:bg-gray-100 hover:text-gray-800 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-colors"
+        >
+          <PlusCircle size={18} />
+          Add Buyer Field
+        </button>
       </FormSection>
 
       <FormSection title="Line Items">

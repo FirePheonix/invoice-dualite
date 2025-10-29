@@ -102,11 +102,22 @@ function App() {
 
   const handleSelectClient = (client: any, type: 'plan' | 'addon') => {
     const clientItems = type === 'plan' ? client.planItems : client.addonItems;
+    
+    // Convert old buyer format to new format if needed
+    const buyerFields = client.buyer.fields ? client.buyer.fields : [
+      { id: 'name', label: 'Buyer Name', value: client.buyer.name || '' },
+      { id: 'address', label: 'Address', value: client.buyer.address || '' },
+      { id: 'country', label: 'Country', value: client.buyer.country || '' },
+      { id: 'state', label: 'State', value: client.buyer.state || '' },
+      { id: 'stateCode', label: 'State Code', value: client.buyer.stateCode || '' },
+      { id: 'email', label: 'Email', value: client.buyer.email || '' },
+      { id: 'id', label: 'Buyer ID', value: client.buyer.id || '' },
+    ];
+    
     handleDataChange(prev => ({
       ...prev,
       buyer: {
-        ...prev.buyer,
-        ...client.buyer,
+        fields: buyerFields,
       },
       items: clientItems && clientItems.length > 0 ? clientItems : prev.items,
     }));

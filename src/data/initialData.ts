@@ -22,13 +22,15 @@ export const createInitialInvoiceData = (type: 'plan' | 'addon', currency: 'USD'
       referenceDate: "16 Aug, 2025",
     },
     buyer: {
-      name: "Mitchell Newby",
-      address: "2900 Phoenix dr Killeen tx, 76543",
-      country: "United States",
-      state: "Texas",
-      stateCode: "97",
-      email: "scraftstudio@gmail.com",
-      id: "9674b405-12dd-4613-9496-d88353585ee9",
+      fields: [
+        { id: 'name', label: 'Buyer Name', value: 'Mitchell Newby' },
+        { id: 'address', label: 'Address', value: '2900 Phoenix dr Killeen tx, 76543' },
+        { id: 'country', label: 'Country', value: 'United States' },
+        { id: 'state', label: 'State', value: 'Texas' },
+        { id: 'stateCode', label: 'State Code', value: '97' },
+        { id: 'email', label: 'Email', value: 'scraftstudio@gmail.com' },
+        { id: 'id', label: 'Buyer ID', value: '9674b405-12dd-4613-9496-d88353585ee9' },
+      ],
     },
     items: [
       {

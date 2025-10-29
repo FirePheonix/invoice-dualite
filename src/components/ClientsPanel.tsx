@@ -25,13 +25,15 @@ const ClientsPanel: React.FC<ClientsPanelProps> = ({ open, onClose, onSelectClie
       id: generateClientId(),
       name: 'New Client',
       buyer: {
-        name: 'New Client',
-        address: '',
-        country: '',
-        state: '',
-        stateCode: '',
-        email: '',
-        id: generateClientId(),
+        fields: [
+          { id: 'name', label: 'Buyer Name', value: 'New Client' },
+          { id: 'address', label: 'Address', value: '' },
+          { id: 'country', label: 'Country', value: '' },
+          { id: 'state', label: 'State', value: '' },
+          { id: 'stateCode', label: 'State Code', value: '' },
+          { id: 'email', label: 'Email', value: '' },
+          { id: 'id', label: 'Buyer ID', value: generateClientId() },
+        ],
       },
       planItems: [],
       addonItems: [],
@@ -136,6 +138,46 @@ const ClientsPanel: React.FC<ClientsPanelProps> = ({ open, onClose, onSelectClie
     }
   };
 
+  const handleChangeBuyerField = (fieldId: string, property: 'label' | 'value', newValue: string) => {
+    if (!editing) return;
+    setEditing({
+      ...editing,
+      buyer: {
+        ...editing.buyer,
+        fields: editing.buyer.fields.map(field => 
+          field.id === fieldId ? { ...field, [property]: newValue } : field
+        )
+      }
+    });
+  };
+
+  const handleAddBuyerFieldToEditing = () => {
+    if (!editing) return;
+    const newFieldId = `field_${Date.now()}`;
+    setEditing({
+      ...editing,
+      buyer: {
+        ...editing.buyer,
+        fields: [...editing.buyer.fields, {
+          id: newFieldId,
+          label: 'New Field',
+          value: ''
+        }]
+      }
+    });
+  };
+
+  const handleRemoveBuyerFieldFromEditing = (fieldId: string) => {
+    if (!editing) return;
+    setEditing({
+      ...editing,
+      buyer: {
+        ...editing.buyer,
+        fields: editing.buyer.fields.filter(field => field.id !== fieldId)
+      }
+    });
+  };
+
   return open ? (
     <div className="fixed inset-0 z-50 flex items-start justify-center p-6">
       <div className="absolute inset-0 bg-black opacity-40" onClick={onClose} />
@@ -161,7 +203,9 @@ const ClientsPanel: React.FC<ClientsPanelProps> = ({ open, onClose, onSelectClie
                     title="Select this client to autofill invoice"
                   >
                     <div className="font-medium">{c.name}</div>
-                    <div className="text-xs text-gray-500 truncate">{c.buyer.address}</div>
+                    <div className="text-xs text-gray-500 truncate">
+                      {c.buyer.fields.find(f => f.id === 'address')?.value || 'No address'}
+                    </div>
                   </button>
                   <div className="ml-2 flex items-center gap-1">
                     <button onClick={() => setEditing(c)} className="text-blue-600 p-1 rounded hover:bg-gray-100" title="Edit">
@@ -183,18 +227,43 @@ const ClientsPanel: React.FC<ClientsPanelProps> = ({ open, onClose, onSelectClie
                   <Input label="Client Name" value={editing.name} onChange={e => handleChangeEditing('name', e.target.value)} />
                 </div>
 
-                <div className="grid grid-cols-2 gap-4">
-                  <Input label="Buyer Name" value={editing.buyer.name} onChange={e => handleChangeEditing('buyer.name', e.target.value)} />
-                  <Input label="Buyer ID" value={editing.buyer.id} onChange={e => handleChangeEditing('buyer.id', e.target.value)} />
-                  <Input label="Email" value={editing.buyer.email} onChange={e => handleChangeEditing('buyer.email', e.target.value)} />
-                  <Input label="Country" value={editing.buyer.country} onChange={e => handleChangeEditing('buyer.country', e.target.value)} />
-                  <Input label="State" value={editing.buyer.state} onChange={e => handleChangeEditing('buyer.state', e.target.value)} />
-                  <Input label="State Code" value={editing.buyer.stateCode} onChange={e => handleChangeEditing('buyer.stateCode', e.target.value)} />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Address</label>
-                  <textarea className="w-full border rounded p-2 h-24" value={editing.buyer.address} onChange={e => handleChangeEditing('buyer.address', e.target.value)} />
+                <div className="space-y-4">
+                  <h4 className="font-medium text-gray-700">Buyer Fields</h4>
+                  {editing.buyer.fields.map((field) => (
+                    <div key={field.id} className="flex items-center gap-2">
+                      <div className="flex-1">
+                        <Input 
+                          label={field.label} 
+                          value={field.value} 
+                          onChange={e => handleChangeBuyerField(field.id, 'value', e.target.value)} 
+                        />
+                      </div>
+                      <div className="w-32">
+                        <label className="block text-sm font-medium text-gray-700 mb-2">Label</label>
+                        <input
+                          type="text"
+                          value={field.label}
+                          onChange={e => handleChangeBuyerField(field.id, 'label', e.target.value)}
+                          className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+                          placeholder="Field label"
+                        />
+                      </div>
+                      <button
+                        onClick={() => handleRemoveBuyerFieldFromEditing(field.id)}
+                        className="mt-6 p-2 text-red-500 hover:text-red-700 transition-colors"
+                        title="Remove field"
+                      >
+                        <Trash2 size={16} />
+                      </button>
+                    </div>
+                  ))}
+                  <button
+                    onClick={handleAddBuyerFieldToEditing}
+                    className="flex items-center gap-2 w-full justify-center px-4 py-2 border border-dashed border-gray-300 text-gray-600 font-semibold rounded-lg hover:bg-gray-100 hover:text-gray-800 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-colors"
+                  >
+                    <PlusCircle size={18} />
+                    Add Buyer Field
+                  </button>
                 </div>
 
                 <div>

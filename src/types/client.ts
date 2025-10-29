@@ -4,13 +4,11 @@ export interface Client {
   id: string;
   name: string;
   buyer: {
-    name: string;
-    address: string;
-    country: string;
-    state: string;
-    stateCode: string;
-    email: string;
-    id: string;
+    fields: Array<{
+      id: string;
+      label: string;
+      value: string;
+    }>;
   };
   planItems: InvoiceItem[];
   addonItems: InvoiceItem[];

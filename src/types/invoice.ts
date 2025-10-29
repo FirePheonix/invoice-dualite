@@ -34,13 +34,11 @@ export interface InvoiceData {
     referenceDate: string;
   };
   buyer: {
-    name: string;
-    address: string;
-    country: string;
-    state: string;
-    stateCode: string;
-    email: string;
-    id: string;
+    fields: Array<{
+      id: string;
+      label: string;
+      value: string;
+    }>;
   };
   items: InvoiceItem[];
   summary: {

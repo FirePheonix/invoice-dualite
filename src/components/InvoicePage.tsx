@@ -41,12 +41,17 @@ const InvoicePage: React.FC<InvoicePageProps> = ({ invoiceData, items, pageNumbe
                     {/* Buyer Info in the middle of the company section */}
                     <div className="mt-8 mb-4 space-y-0.5 py-10">
                       <p className="leading-tight">Buyer (Bill to)</p>
-                      <p className="font-bold leading-tight">{buyer.name}</p>
-                      <p className="font-bold text-blue-600 leading-tight">{buyer.address}</p>
-                      <p className="font-bold text-blue-600 leading-tight">{buyer.country}</p>
-                      <p className="font-bold text-blue-600 leading-tight">State:{buyer.state} , Code: {buyer.stateCode}</p>
-                      <p className="text-blue-600 font-bold leading-tight">{buyer.email}</p>
-                      <p className="text-blue-600 font-bold leading-tight">{buyer.id}</p>
+                      {buyer.fields.map((field, index) => (
+                        field.value.trim() && (
+                          <p key={field.id} className={`leading-tight ${index === 0 ? 'font-bold' : 'font-bold text-blue-600'}`}>
+                            {field.label === 'State' && buyer.fields.find(f => f.label === 'State Code')?.value.trim() ? 
+                              `${field.label}: ${field.value}, Code: ${buyer.fields.find(f => f.label === 'State Code')?.value}` :
+                              field.label === 'State Code' ? null : // Skip State Code if already shown with State
+                              field.value
+                            }
+                          </p>
+                        )
+                      ))}
                     </div>
                   </div>
                 </div>
