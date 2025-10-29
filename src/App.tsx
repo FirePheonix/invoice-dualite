@@ -6,12 +6,13 @@ import InvoiceForm from './components/InvoiceForm';
 import InvoicePreview from './components/InvoicePreview';
 import ClientsPanel from './components/ClientsPanel';
 import InvoiceHistory from './components/InvoiceHistory';
+import PlansPage from './components/PlansPage';
 import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';
 import { Download, Plus } from 'lucide-react';
 
 function App() {
-  const [currentView, setCurrentView] = useState<'invoice' | 'history'>('invoice');
+  const [currentView, setCurrentView] = useState<'invoice' | 'history' | 'plans'>('invoice');
   const [isPreviewMode, setIsPreviewMode] = useState(false);
   const [invoiceType, setInvoiceType] = useState<'plan' | 'addon'>('plan');
   const [currency, setCurrency] = useState<'USD' | 'INR'>('USD');
@@ -224,6 +225,16 @@ function App() {
                 >
                   History
                 </button>
+                <button
+                  onClick={() => setCurrentView('plans')}
+                  className={`px-3 py-1 rounded-md text-sm font-medium transition-colors ${
+                    currentView === 'plans' 
+                      ? 'bg-white text-gray-900 shadow-sm' 
+                      : 'text-gray-600 hover:text-gray-900'
+                  }`}
+                >
+                  Plans
+                </button>
               </div>
             )}
 
@@ -346,8 +357,10 @@ function App() {
               </div>
             </div>
           )
-        ) : (
+        ) : currentView === 'history' ? (
           <InvoiceHistory onInvoiceSelect={handleViewInvoice} />
+        ) : (
+          <PlansPage />
         )}
       </main>
       <ClientsPanel 
