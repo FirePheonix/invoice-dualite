@@ -1,6 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
 import { InvoiceData } from './types/invoice';
-import { Client } from './types/client';
 import { createInitialInvoiceData } from './data/initialData';
 import { getNextInvoiceNumber, saveInvoiceToHistory, type StoredInvoice } from './data/invoiceHistory';
 import InvoiceForm from './components/InvoiceForm';
@@ -8,7 +7,6 @@ import InvoicePreview from './components/InvoicePreview';
 import ClientsPage from './components/ClientsPage';
 import InvoiceHistory from './components/InvoiceHistory';
 import PlansPage from './components/PlansPage';
-import { getPlanById } from './data/planUtils';
 import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';
 import { Download, Plus } from 'lucide-react';
@@ -101,65 +99,15 @@ function App() {
     setIsDownloading(false);
   };
 
-  const handleSelectClient = (client: Client) => {
-    // Update invoice type, currency, and service type from client config
-    setInvoiceType(client.planConfig.invoiceType);
-    setCurrency(client.planConfig.currency);
-    setServiceType(client.planConfig.serviceType);
+  const handleSelectClient = (clientInvoiceData: InvoiceData) => {
+    // Update the global state to match the client's invoice data
+    setInvoiceType(clientInvoiceData.type);
+    setCurrency(clientInvoiceData.currency);
     
-    // If client has a predefined plan configuration, apply it
-    if (client.planConfig.selectedPlanId && client.planConfig.selectedPlanId !== '') {
-      const selectedPlan = getPlanById(
-        client.planConfig.selectedPlanId,
-        client.planConfig.invoiceType,
-        client.planConfig.serviceType,
-        client.planConfig.currency
-      );
-      
-      if (selectedPlan) {
-        // Apply predefined plan settings
-        handleDataChange(prev => ({
-          ...prev,
-          type: client.planConfig.invoiceType,
-          currency: client.planConfig.currency,
-          buyer: client.buyer,
-          items: [{
-            id: 1,
-            srNo: 1,
-            description: selectedPlan.name,
-            subscription: "",
-            period: "",
-            features: [],
-            hsnSac: "998313",
-            gstRate: "NA",
-            qty: 1,
-            rate: selectedPlan.basePrice,
-            per: "Nos",
-            amount: selectedPlan.basePrice,
-          }],
-          summary: {
-            ...prev.summary,
-            applyTax: 'taxApplicable' in selectedPlan ? selectedPlan.taxApplicable : false,
-            taxType: 'taxApplicable' in selectedPlan && selectedPlan.taxApplicable ? 'rajasthan' : 'no_tax',
-          }
-        }));
-      }
-    } else {
-      // Use manual configuration from client
-      handleDataChange(prev => ({
-        ...prev,
-        type: client.planConfig.invoiceType,
-        currency: client.planConfig.currency,
-        buyer: client.buyer,
-        items: client.items && client.items.length > 0 ? client.items : prev.items,
-        summary: {
-          ...prev.summary,
-          applyTax: client.taxConfig.applyTax,
-          taxType: client.taxConfig.taxType,
-        }
-      }));
-    }
+    // Set the complete invoice data from the client
+    setInvoiceData(clientInvoiceData);
     
+    // Switch to invoice view
     setCurrentView('invoice');
   };
 
