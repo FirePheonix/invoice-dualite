@@ -7,14 +7,13 @@ import { PlusCircle, Trash2, Edit3 } from 'lucide-react';
 interface ClientsPanelProps {
   open: boolean;
   onClose: () => void;
-  onSelectClient: (client: Client, type: 'plan' | 'addon') => void;
-  invoiceType: 'plan' | 'addon';
+  onSelectClient: (client: Client) => void;
 }
 
-const ClientsPanel: React.FC<ClientsPanelProps> = ({ open, onClose, onSelectClient, invoiceType }) => {
+const ClientsPanel: React.FC<ClientsPanelProps> = ({ open, onClose, onSelectClient }) => {
   const [clients, setClients] = useState<Client[]>([]);
   const [editing, setEditing] = useState<Client | null>(null);
-  const [activeTab, setActiveTab] = useState<'plan' | 'addon'>('plan');
+
 
   useEffect(() => {
     setClients(getClients());
@@ -24,6 +23,12 @@ const ClientsPanel: React.FC<ClientsPanelProps> = ({ open, onClose, onSelectClie
     const newClient: Client = {
       id: generateClientId(),
       name: 'New Client',
+      planConfig: {
+        invoiceType: 'plan',
+        currency: 'USD',
+        serviceType: 'regular',
+        selectedPlanId: undefined
+      },
       buyer: {
         fields: [
           { id: 'name', label: 'Buyer Name', value: 'New Client' },
@@ -35,8 +40,26 @@ const ClientsPanel: React.FC<ClientsPanelProps> = ({ open, onClose, onSelectClie
           { id: 'id', label: 'Buyer ID', value: generateClientId() },
         ],
       },
-      planItems: [],
-      addonItems: [],
+      items: [
+        {
+          id: 1,
+          srNo: 1,
+          description: "Select a plan",
+          subscription: "",
+          period: "",
+          features: [],
+          hsnSac: "998313",
+          gstRate: "NA",
+          qty: 1,
+          rate: 0,
+          per: "Nos",
+          amount: 0,
+        }
+      ],
+      taxConfig: {
+        applyTax: false,
+        taxType: 'no_tax'
+      }
     };
     const updated = [...clients, newClient];
     setClients(updated);
@@ -63,7 +86,7 @@ const ClientsPanel: React.FC<ClientsPanelProps> = ({ open, onClose, onSelectClie
 
   const getCurrentItems = () => {
     if (!editing) return [];
-    return activeTab === 'plan' ? editing.planItems : editing.addonItems;
+    return editing.items;
   };
 
   const handleAddItemToEditing = () => {
@@ -72,7 +95,7 @@ const ClientsPanel: React.FC<ClientsPanelProps> = ({ open, onClose, onSelectClie
     const newItem = {
       id: Date.now(),
       srNo: currentItems.length + 1,
-      description: activeTab === 'plan' ? 'New Plan Item' : 'New Add-on Item',
+      description: 'New Item',
       subscription: '',
       period: '',
       features: [],
@@ -84,26 +107,15 @@ const ClientsPanel: React.FC<ClientsPanelProps> = ({ open, onClose, onSelectClie
       amount: 0,
     };
     
-    if (activeTab === 'plan') {
-      setEditing({ ...editing, planItems: [...editing.planItems, newItem] });
-    } else {
-      setEditing({ ...editing, addonItems: [...editing.addonItems, newItem] });
-    }
+    setEditing({ ...editing, items: [...editing.items, newItem] });
   };
 
   const handleRemoveEditingItem = (id: number) => {
     if (!editing) return;
-    if (activeTab === 'plan') {
-      setEditing({ 
-        ...editing, 
-        planItems: editing.planItems.filter(it => it.id !== id).map((it, idx) => ({ ...it, srNo: idx + 1 })) 
-      });
-    } else {
-      setEditing({ 
-        ...editing, 
-        addonItems: editing.addonItems.filter(it => it.id !== id).map((it, idx) => ({ ...it, srNo: idx + 1 })) 
-      });
-    }
+    setEditing({ 
+      ...editing, 
+      items: editing.items.filter(it => it.id !== id).map((it, idx) => ({ ...it, srNo: idx + 1 })) 
+    });
   };
 
   const handleEditingItemChange = (id: number, field: string, value: any) => {
@@ -121,11 +133,7 @@ const ClientsPanel: React.FC<ClientsPanelProps> = ({ open, onClose, onSelectClie
       return it;
     });
 
-    if (activeTab === 'plan') {
-      setEditing({ ...editing, planItems: updateItems(editing.planItems) });
-    } else {
-      setEditing({ ...editing, addonItems: updateItems(editing.addonItems) });
-    }
+    setEditing({ ...editing, items: updateItems(editing.items) });
   };
 
   const handleChangeEditing = (field: string, value: any) => {
@@ -178,6 +186,28 @@ const ClientsPanel: React.FC<ClientsPanelProps> = ({ open, onClose, onSelectClie
     });
   };
 
+  const handleChangePlanConfig = (field: string, value: any) => {
+    if (!editing) return;
+    setEditing({
+      ...editing,
+      planConfig: {
+        ...editing.planConfig,
+        [field]: value
+      }
+    });
+  };
+
+  const handleChangeTaxConfig = (field: string, value: any) => {
+    if (!editing) return;
+    setEditing({
+      ...editing,
+      taxConfig: {
+        ...editing.taxConfig,
+        [field]: value
+      }
+    });
+  };
+
   return open ? (
     <div className="fixed inset-0 z-50 flex items-start justify-center p-6">
       <div className="absolute inset-0 bg-black opacity-40" onClick={onClose} />
@@ -198,7 +228,7 @@ const ClientsPanel: React.FC<ClientsPanelProps> = ({ open, onClose, onSelectClie
               {clients.map(c => (
                 <li key={c.id} className="flex items-center justify-between p-2 rounded hover:bg-gray-50">
                   <button
-                    onClick={() => onSelectClient(c, invoiceType)}
+                    onClick={() => onSelectClient(c)}
                     className="text-left w-full"
                     title="Select this client to autofill invoice"
                   >
@@ -225,6 +255,77 @@ const ClientsPanel: React.FC<ClientsPanelProps> = ({ open, onClose, onSelectClie
               <div className="space-y-4">
                 <div className="flex items-center justify-between">
                   <Input label="Client Name" value={editing.name} onChange={e => handleChangeEditing('name', e.target.value)} />
+                </div>
+
+                <div className="space-y-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                  <h4 className="font-medium text-blue-800">Plan Configuration</h4>
+                  
+                  <div className="grid grid-cols-3 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Invoice Type</label>
+                      <select 
+                        value={editing.planConfig.invoiceType}
+                        onChange={e => handleChangePlanConfig('invoiceType', e.target.value)}
+                        className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+                      >
+                        <option value="plan">Plan</option>
+                        <option value="addon">Add-on</option>
+                      </select>
+                    </div>
+                    
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Currency</label>
+                      <select 
+                        value={editing.planConfig.currency}
+                        onChange={e => handleChangePlanConfig('currency', e.target.value)}
+                        className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+                      >
+                        <option value="USD">USD</option>
+                        <option value="INR">INR</option>
+                      </select>
+                    </div>
+                    
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Service Type</label>
+                      <select 
+                        value={editing.planConfig.serviceType}
+                        onChange={e => handleChangePlanConfig('serviceType', e.target.value)}
+                        className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+                      >
+                        <option value="regular">Regular</option>
+                        <option value="figma">Figma</option>
+                      </select>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Apply Tax</label>
+                      <select 
+                        value={editing.taxConfig.applyTax ? 'true' : 'false'}
+                        onChange={e => handleChangeTaxConfig('applyTax', e.target.value === 'true')}
+                        className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+                      >
+                        <option value="false">No Tax</option>
+                        <option value="true">Apply Tax</option>
+                      </select>
+                    </div>
+                    
+                    {editing.taxConfig.applyTax && (
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Tax Type</label>
+                        <select 
+                          value={editing.taxConfig.taxType}
+                          onChange={e => handleChangeTaxConfig('taxType', e.target.value)}
+                          className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+                        >
+                          <option value="no_tax">No Tax</option>
+                          <option value="rajasthan">Rajasthan (CGST + SGST)</option>
+                          <option value="other_state">Other State (IGST)</option>
+                        </select>
+                      </div>
+                    )}
+                  </div>
                 </div>
 
                 <div className="space-y-4">
@@ -269,28 +370,6 @@ const ClientsPanel: React.FC<ClientsPanelProps> = ({ open, onClose, onSelectClie
                 <div>
                   <div className="flex items-center gap-4 mb-4">
                     <h4 className="font-medium">Default Line Items</h4>
-                    <div className="flex items-center bg-gray-100 rounded-lg p-1">
-                      <button
-                        onClick={() => setActiveTab('plan')}
-                        className={`px-3 py-1 rounded-md text-xs font-medium transition-colors ${
-                          activeTab === 'plan' 
-                            ? 'bg-white text-gray-900 shadow-sm' 
-                            : 'text-gray-600 hover:text-gray-900'
-                        }`}
-                      >
-                        Plan Items
-                      </button>
-                      <button
-                        onClick={() => setActiveTab('addon')}
-                        className={`px-3 py-1 rounded-md text-xs font-medium transition-colors ${
-                          activeTab === 'addon' 
-                            ? 'bg-white text-gray-900 shadow-sm' 
-                            : 'text-gray-600 hover:text-gray-900'
-                        }`}
-                      >
-                        Add-on Items
-                      </button>
-                    </div>
                   </div>
                   <div className="space-y-3">
                     {getCurrentItems().map(item => (
@@ -309,7 +388,7 @@ const ClientsPanel: React.FC<ClientsPanelProps> = ({ open, onClose, onSelectClie
                       </div>
                     ))}
                     <button onClick={handleAddItemToEditing} className="flex items-center gap-2 px-3 py-2 bg-gray-100 rounded text-sm">
-                      <PlusCircle size={14} /> Add {activeTab === 'plan' ? 'Plan' : 'Add-on'} Item
+                      <PlusCircle size={14} /> Add Item
                     </button>
                   </div>
                 </div>

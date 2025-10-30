@@ -1,18 +1,20 @@
 import { useState, useRef, useEffect } from 'react';
 import { InvoiceData } from './types/invoice';
+import { Client } from './types/client';
 import { createInitialInvoiceData } from './data/initialData';
 import { getNextInvoiceNumber, saveInvoiceToHistory, type StoredInvoice } from './data/invoiceHistory';
 import InvoiceForm from './components/InvoiceForm';
 import InvoicePreview from './components/InvoicePreview';
-import ClientsPanel from './components/ClientsPanel';
+import ClientsPage from './components/ClientsPage';
 import InvoiceHistory from './components/InvoiceHistory';
 import PlansPage from './components/PlansPage';
+import { getPlanById } from './data/planUtils';
 import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';
 import { Download, Plus } from 'lucide-react';
 
 function App() {
-  const [currentView, setCurrentView] = useState<'invoice' | 'history' | 'plans'>('invoice');
+  const [currentView, setCurrentView] = useState<'invoice' | 'history' | 'plans' | 'clients'>('invoice');
   const [isPreviewMode, setIsPreviewMode] = useState(false);
   const [invoiceType, setInvoiceType] = useState<'plan' | 'addon'>('plan');
   const [currency, setCurrency] = useState<'USD' | 'INR'>('USD');
@@ -30,7 +32,6 @@ function App() {
   });
   const invoicePreviewRef = useRef<HTMLDivElement>(null);
   const [isDownloading, setIsDownloading] = useState(false);
-  const [clientsOpen, setClientsOpen] = useState(false);
 
   // Simple effect to update item amounts - let InvoiceForm handle tax calculations
   useEffect(() => {
@@ -100,28 +101,66 @@ function App() {
     setIsDownloading(false);
   };
 
-  const handleSelectClient = (client: any, type: 'plan' | 'addon') => {
-    const clientItems = type === 'plan' ? client.planItems : client.addonItems;
+  const handleSelectClient = (client: Client) => {
+    // Update invoice type, currency, and service type from client config
+    setInvoiceType(client.planConfig.invoiceType);
+    setCurrency(client.planConfig.currency);
+    setServiceType(client.planConfig.serviceType);
     
-    // Convert old buyer format to new format if needed
-    const buyerFields = client.buyer.fields ? client.buyer.fields : [
-      { id: 'name', label: 'Buyer Name', value: client.buyer.name || '' },
-      { id: 'address', label: 'Address', value: client.buyer.address || '' },
-      { id: 'country', label: 'Country', value: client.buyer.country || '' },
-      { id: 'state', label: 'State', value: client.buyer.state || '' },
-      { id: 'stateCode', label: 'State Code', value: client.buyer.stateCode || '' },
-      { id: 'email', label: 'Email', value: client.buyer.email || '' },
-      { id: 'id', label: 'Buyer ID', value: client.buyer.id || '' },
-    ];
+    // If client has a predefined plan configuration, apply it
+    if (client.planConfig.selectedPlanId && client.planConfig.selectedPlanId !== '') {
+      const selectedPlan = getPlanById(
+        client.planConfig.selectedPlanId,
+        client.planConfig.invoiceType,
+        client.planConfig.serviceType,
+        client.planConfig.currency
+      );
+      
+      if (selectedPlan) {
+        // Apply predefined plan settings
+        handleDataChange(prev => ({
+          ...prev,
+          type: client.planConfig.invoiceType,
+          currency: client.planConfig.currency,
+          buyer: client.buyer,
+          items: [{
+            id: 1,
+            srNo: 1,
+            description: selectedPlan.name,
+            subscription: "",
+            period: "",
+            features: [],
+            hsnSac: "998313",
+            gstRate: "NA",
+            qty: 1,
+            rate: selectedPlan.basePrice,
+            per: "Nos",
+            amount: selectedPlan.basePrice,
+          }],
+          summary: {
+            ...prev.summary,
+            applyTax: 'taxApplicable' in selectedPlan ? selectedPlan.taxApplicable : false,
+            taxType: 'taxApplicable' in selectedPlan && selectedPlan.taxApplicable ? 'rajasthan' : 'no_tax',
+          }
+        }));
+      }
+    } else {
+      // Use manual configuration from client
+      handleDataChange(prev => ({
+        ...prev,
+        type: client.planConfig.invoiceType,
+        currency: client.planConfig.currency,
+        buyer: client.buyer,
+        items: client.items && client.items.length > 0 ? client.items : prev.items,
+        summary: {
+          ...prev.summary,
+          applyTax: client.taxConfig.applyTax,
+          taxType: client.taxConfig.taxType,
+        }
+      }));
+    }
     
-    handleDataChange(prev => ({
-      ...prev,
-      buyer: {
-        fields: buyerFields,
-      },
-      items: clientItems && clientItems.length > 0 ? clientItems : prev.items,
-    }));
-    setClientsOpen(false);
+    setCurrentView('invoice');
   };
 
   const handleInvoiceTypeChange = (type: 'plan' | 'addon') => {
@@ -227,16 +266,6 @@ function App() {
                   Create
                 </button>
                 <button
-                  onClick={() => setCurrentView('history')}
-                  className={`px-3 py-1 rounded-md text-sm font-medium transition-colors ${
-                    currentView === 'history' 
-                      ? 'bg-white text-gray-900 shadow-sm' 
-                      : 'text-gray-600 hover:text-gray-900'
-                  }`}
-                >
-                  History
-                </button>
-                <button
                   onClick={() => setCurrentView('plans')}
                   className={`px-3 py-1 rounded-md text-sm font-medium transition-colors ${
                     currentView === 'plans' 
@@ -321,22 +350,37 @@ function App() {
                 New Invoice
               </button>
             )}
-            
-            {currentView === 'invoice' && (
+
+            {!isPreviewMode && (
               <>
-                {!isPreviewMode && (
-                  <button onClick={() => setClientsOpen(true)} className="px-3 py-2 bg-gray-50 border rounded text-sm">Clients</button>
-                )}
-                
                 <button
-                  onClick={handleDownloadPdf}
-                  disabled={isDownloading}
-                  className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white font-semibold rounded-lg shadow-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors"
+                  onClick={() => setCurrentView('history')}
+                  className={`px-3 py-2 border rounded text-sm transition-colors ${
+                    currentView === 'history' 
+                      ? 'bg-blue-50 border-blue-300 text-blue-700' 
+                      : 'bg-gray-50 hover:bg-gray-100'
+                  }`}
                 >
-                  <Download size={18} />
-                  {isDownloading ? 'Downloading...' : (isPreviewMode ? 'Download This Invoice' : 'Download PDF')}
+                  History
+                </button>
+                <button
+                  onClick={() => setCurrentView('clients')}
+                  className="px-3 py-2 bg-gray-50 border rounded text-sm hover:bg-gray-100 transition-colors"
+                >
+                  Clients
                 </button>
               </>
+            )}
+            
+            {currentView === 'invoice' && (
+              <button
+                onClick={handleDownloadPdf}
+                disabled={isDownloading}
+                className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white font-semibold rounded-lg shadow-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors"
+              >
+                <Download size={18} />
+                {isDownloading ? 'Downloading...' : (isPreviewMode ? 'Download This Invoice' : 'Download PDF')}
+              </button>
             )}
           </div>
         </div>
@@ -370,16 +414,13 @@ function App() {
           )
         ) : currentView === 'history' ? (
           <InvoiceHistory onInvoiceSelect={handleViewInvoice} />
-        ) : (
+        ) : currentView === 'plans' ? (
           <PlansPage />
-        )}
+        ) : currentView === 'clients' ? (
+          <ClientsPage onSelectClient={handleSelectClient} />
+        ) : null}
       </main>
-      <ClientsPanel 
-        open={clientsOpen} 
-        onClose={() => setClientsOpen(false)} 
-        onSelectClient={handleSelectClient} 
-        invoiceType={invoiceType}
-      />
+     
     </div>
   );
 }

@@ -1,22 +1,48 @@
 import { Clients, Client } from '../types/client';
 
-const STORAGE_KEY = 'dualite_clients_v1';
+const STORAGE_KEY = 'dualite_clients_v2';
 
 const sampleClients: Clients = [
   {
     id: 'client-1',
     name: 'Mitchell Newby',
-    buyer: {
-      name: 'Mitchell Newby',
-      address: '2900 Phoenix dr Killeen tx, 76543',
-      country: 'United States',
-      state: 'Texas',
-      stateCode: '97',
-      email: 'scraftstudio@gmail.com',
-      id: '9674b405-12dd-4613-9496-d88353585ee9',
+    planConfig: {
+      invoiceType: 'plan',
+      currency: 'USD',
+      serviceType: 'regular',
+      selectedPlanId: undefined
     },
-    planItems: [],
-    addonItems: [],
+    buyer: {
+      fields: [
+        { id: 'name', label: 'Buyer Name', value: 'Mitchell Newby' },
+        { id: 'address', label: 'Address', value: '2900 Phoenix dr Killeen tx, 76543' },
+        { id: 'country', label: 'Country', value: 'United States' },
+        { id: 'state', label: 'State', value: 'Texas' },
+        { id: 'stateCode', label: 'State Code', value: '97' },
+        { id: 'email', label: 'Email', value: 'scraftstudio@gmail.com' },
+        { id: 'id', label: 'Buyer ID', value: '9674b405-12dd-4613-9496-d88353585ee9' },
+      ],
+    },
+    items: [
+      {
+        id: 1,
+        srNo: 1,
+        description: "Dualite Alpha Pro Plan",
+        subscription: "Pro-Monthly",
+        period: "3 October, 2025 to 3 November, 2025",
+        features: ["200 messages", "Figma Import", "Github Import", "Premium e-mail support"],
+        hsnSac: "998313",
+        gstRate: "NA",
+        qty: 1,
+        rate: 39,
+        per: "Nos",
+        amount: 39,
+      }
+    ],
+    taxConfig: {
+      applyTax: false,
+      taxType: 'no_tax'
+    }
   },
 ];
 
