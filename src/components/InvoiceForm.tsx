@@ -123,19 +123,21 @@ const InvoiceForm: React.FC<InvoiceFormProps> = ({
         handleItemChange(firstItemId, 'rate', plan.basePrice);
         handleItemChange(firstItemId, 'description', plan.description);
         
-        // Update features based on plan type
-        if (type === 'addon') {
-          // For addons, keep the main service description but show the addon as feature
-          handleItemChange(firstItemId, 'description', 'Dualite Alpha Pro Plan');
-          handleItemChange(firstItemId, 'features', [plan.name]);
-        } else {
-          // For plans, set the plan as description with appropriate features
-          const planFeatures = plan.name.includes('Pro') 
-            ? ["200 messages", "Figma Import", "Github Import", "Premium e-mail support"]
-            : plan.name.includes('Launch')
-            ? ["500 messages", "Figma Import", "Github Import", "Premium e-mail support", "Priority support"]
-            : ["Basic features"];
-          handleItemChange(firstItemId, 'features', planFeatures);
+        // Update all fields from plan data
+        if ('subscription' in plan && plan.subscription) {
+          handleItemChange(firstItemId, 'subscription', plan.subscription);
+        }
+        if ('period' in plan && plan.period) {
+          handleItemChange(firstItemId, 'period', plan.period);
+        }
+        if ('features' in plan && plan.features) {
+          handleItemChange(firstItemId, 'features', plan.features);
+        }
+        if ('hsnSac' in plan && plan.hsnSac) {
+          handleItemChange(firstItemId, 'hsnSac', plan.hsnSac);
+        }
+        if ('gstRate' in plan && plan.gstRate) {
+          handleItemChange(firstItemId, 'gstRate', plan.gstRate);
         }
         
         // Set tax applicability based on plan
@@ -181,6 +183,31 @@ const InvoiceForm: React.FC<InvoiceFormProps> = ({
     }));
   };
 
+  const handleAddFeature = (itemId: number) => {
+    onDataChange(prev => ({
+      ...prev,
+      items: prev.items.map(item => {
+        if (item.id === itemId) {
+          return { ...item, features: [...item.features, 'New Feature'] };
+        }
+        return item;
+      })
+    }));
+  };
+
+  const handleRemoveFeature = (itemId: number, featureIndex: number) => {
+    onDataChange(prev => ({
+      ...prev,
+      items: prev.items.map(item => {
+        if (item.id === itemId) {
+          const newFeatures = item.features.filter((_, index) => index !== featureIndex);
+          return { ...item, features: newFeatures };
+        }
+        return item;
+      })
+    }));
+  };
+
   const handleAddItem = () => {
     onDataChange(prev => ({
       ...prev,
@@ -192,8 +219,8 @@ const InvoiceForm: React.FC<InvoiceFormProps> = ({
           description: "New Item",
           subscription: "",
           period: "",
-          features: [],
-          hsnSac: "",
+          features: ["New Feature"],
+          hsnSac: "998313",
           gstRate: "NA",
           qty: 1,
           rate: 0,
@@ -393,20 +420,63 @@ const InvoiceForm: React.FC<InvoiceFormProps> = ({
               </button>
             )}
             <Input label="Description" value={item.description} onChange={e => handleItemChange(item.id, 'description', e.target.value)} />
-            {invoiceData.type === 'plan' && (
-              <>
-                <Input label="Subscription" value={item.subscription} onChange={e => handleItemChange(item.id, 'subscription', e.target.value)} />
-                <Input label="Period" value={item.period} onChange={e => handleItemChange(item.id, 'period', e.target.value)} />
-              </>
-            )}
-            {item.features.map((feature, index) => (
-              <Input key={index} label={`Feature ${index + 1}`} value={feature} onChange={e => handleFeatureChange(item.id, index, e.target.value)} />
-            ))}
-            <Input label="HSN/SAC" value={item.hsnSac} onChange={e => handleItemChange(item.id, 'hsnSac', e.target.value)} />
-            <Input label="GST Rate" value={item.gstRate} onChange={e => handleItemChange(item.id, 'gstRate', e.target.value)} />
-            <div className="grid grid-cols-3 gap-4">
+            
+            {/* Subscription and Period fields for all types */}
+            <div className="grid grid-cols-2 gap-4">
+              <Input label="Subscription" value={item.subscription} onChange={e => handleItemChange(item.id, 'subscription', e.target.value)} />
+              <Input label="Period" value={item.period} onChange={e => handleItemChange(item.id, 'period', e.target.value)} />
+            </div>
+
+            {/* Features section with add/remove functionality */}
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <label className="block text-sm font-medium text-gray-700">Features</label>
+                <button
+                  onClick={() => handleAddFeature(item.id)}
+                  className="text-blue-500 hover:text-blue-700 text-sm flex items-center gap-1"
+                >
+                  <PlusCircle size={14} />
+                  Add Feature
+                </button>
+              </div>
+              {item.features.map((feature, index) => (
+                <div key={index} className="flex items-center gap-2">
+                  <Input 
+                    label={`Feature ${index + 1}`} 
+                    value={feature} 
+                    onChange={e => handleFeatureChange(item.id, index, e.target.value)} 
+                    className="flex-1"
+                  />
+                  {item.features.length > 1 && (
+                    <button
+                      onClick={() => handleRemoveFeature(item.id, index)}
+                      className="mt-6 p-2 text-red-500 hover:text-red-700 transition-colors"
+                      title="Remove feature"
+                    >
+                      <Trash2 size={14} />
+                    </button>
+                  )}
+                </div>
+              ))}
+              {item.features.length === 0 && (
+                <button
+                  onClick={() => handleAddFeature(item.id)}
+                  className="w-full py-2 px-4 border border-dashed border-gray-300 text-gray-500 rounded-md hover:bg-gray-50 text-sm"
+                >
+                  Add first feature
+                </button>
+              )}
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <Input label="HSN/SAC" value={item.hsnSac} onChange={e => handleItemChange(item.id, 'hsnSac', e.target.value)} />
+              <Input label="GST Rate" value={item.gstRate} onChange={e => handleItemChange(item.id, 'gstRate', e.target.value)} />
+            </div>
+            
+            <div className="grid grid-cols-4 gap-4">
               <Input label="Quantity" type="number" value={item.qty} onChange={e => handleItemChange(item.id, 'qty', parseFloat(e.target.value) || 0)} />
               <Input label="Rate" type="number" value={item.rate} onChange={e => handleItemChange(item.id, 'rate', parseFloat(e.target.value) || 0)} />
+              <Input label="Per" value={item.per} onChange={e => handleItemChange(item.id, 'per', e.target.value)} />
               <Input label="Amount" type="number" value={item.amount} readOnly className="bg-gray-100" />
             </div>
           </div>
