@@ -8,6 +8,10 @@ export interface AddonRegularUSD {
   hsnSac?: string;
   gstRate?: string;
   basePrice: number;
+  originalPrice?: number; // Original price before discount
+  discountPrice?: number; // Discounted price
+  isDiscounted?: boolean; // Whether this plan has a discount
+  discountPercentage?: number; // Discount percentage
   total: number;
   taxApplicable: boolean;
 }

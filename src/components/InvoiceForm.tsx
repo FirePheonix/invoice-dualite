@@ -144,19 +144,32 @@ const InvoiceForm: React.FC<InvoiceFormProps> = ({
         if (item.id !== firstItemId) return item;
 
         const qty = item.qty || 1;
-        const rate = plan.basePrice ?? item.rate;
+        
+        // For discounted plans, show original price in Rate/Amount, but use discounted price for calculations
+        let rate, amount;
+        if ('isDiscounted' in plan && plan.isDiscounted && plan.originalPrice) {
+          // Show original price in Rate and Amount columns
+          rate = plan.originalPrice;
+          amount = qty * plan.originalPrice;
+        } else {
+          // Regular pricing
+          rate = plan.basePrice ?? item.rate;
+          amount = qty * rate;
+        }
         
         // For tax-applicable plans (INR), use the plan's total as amount, otherwise use qty * rate
-        let amount = qty * rate;
         if ('total' in plan && plan.total && 'taxApplicable' in plan && plan.taxApplicable) {
           amount = plan.total; // Use the total from plan data (includes tax calculations)
         }
+
+        // Use clean description without discount text
+        const fullDescription = plan.description ?? item.description;
 
         return {
           ...item,
           rate,
           amount,
-          description: plan.description ?? item.description,
+          description: fullDescription,
           subscription: 'subscription' in plan ? (plan.subscription ?? item.subscription) : item.subscription,
           period: 'period' in plan ? (plan.period ?? item.period) : item.period,
           features: 'features' in plan ? (plan.features ?? item.features) : item.features,
@@ -168,24 +181,49 @@ const InvoiceForm: React.FC<InvoiceFormProps> = ({
       // Update summary with values directly from plan data
       const newSummary = { ...prev.summary };
       
-      if ('basePrice' in plan) {
+      // For discounted plans, use discounted price as Gross Amount, otherwise use basePrice
+      if ('isDiscounted' in plan && plan.isDiscounted && plan.discountPrice) {
+        newSummary.grossAmount = plan.discountPrice;
+      } else if ('basePrice' in plan) {
         newSummary.grossAmount = plan.basePrice;
       }
-      if ('cgst' in plan) {
-        newSummary.cgst = formatTaxAmount(plan.cgst || 0, invoiceData.currency);
-      }
-      if ('sgst' in plan) {
-        newSummary.sgst = formatTaxAmount(plan.sgst || 0, invoiceData.currency);
-      }
-      if ('igst' in plan) {
-        newSummary.igst = formatTaxAmount(plan.igst || 0, invoiceData.currency);
-      }
-      if ('total' in plan) {
-        newSummary.total = plan.total;
-      }
+      
+      // Set tax applicability first
       if ('taxApplicable' in plan) {
         newSummary.applyTax = plan.taxApplicable;
-        newSummary.taxType = plan.taxApplicable ? 'rajasthan' : 'no_tax';
+        
+        // If tax is applicable, set default tax type to rajasthan, otherwise no_tax
+        if (plan.taxApplicable) {
+          newSummary.taxType = 'rajasthan'; // Default to Rajasthan
+          
+          // Apply taxes based on default selection (Rajasthan = CGST + SGST)
+          if ('cgst' in plan && 'sgst' in plan) {
+            newSummary.cgst = formatTaxAmount(plan.cgst || 0, invoiceData.currency);
+            newSummary.sgst = formatTaxAmount(plan.sgst || 0, invoiceData.currency);
+            newSummary.igst = formatTaxAmount(0, invoiceData.currency); // Set IGST to 0 for Rajasthan
+          }
+        } else {
+          newSummary.taxType = 'no_tax';
+          // No tax - set all to 0 and total = discount price or base price
+          newSummary.cgst = formatTaxAmount(0, invoiceData.currency);
+          newSummary.sgst = formatTaxAmount(0, invoiceData.currency);
+          newSummary.igst = formatTaxAmount(0, invoiceData.currency);
+        }
+      }
+      
+      // Set total based on tax type
+      if ('total' in plan) {
+        if (newSummary.taxType === 'no_tax') {
+          // For no tax, total = discount price or base price (without tax)
+          if ('isDiscounted' in plan && plan.isDiscounted && plan.discountPrice) {
+            newSummary.total = plan.discountPrice;
+          } else if ('basePrice' in plan) {
+            newSummary.total = plan.basePrice;
+          }
+        } else {
+          // For tax applicable, use plan's total (includes tax)
+          newSummary.total = plan.total;
+        }
       }
 
       return { 
@@ -203,6 +241,47 @@ const InvoiceForm: React.FC<InvoiceFormProps> = ({
         ? { ...(prev[section] as object), [field]: value }
         : value
     }));
+  };
+
+  // Handle tax type changes to update CGST/SGST/IGST dynamically
+  const handleTaxTypeChange = (taxType: string) => {
+    // Update the tax type first
+    handleChange('summary', 'taxType', taxType);
+    
+    // If we have a selected plan, update taxes based on the new tax type
+    if (selectedPlanId && currentPlan && 'taxApplicable' in currentPlan && currentPlan.taxApplicable) {
+      const plan = currentPlan;
+      
+      onDataChange(prev => {
+        const newSummary = { ...prev.summary, taxType: taxType as 'rajasthan' | 'other_state' | 'no_tax' };
+        
+        if (taxType === 'rajasthan' && 'cgst' in plan && 'sgst' in plan) {
+          // Rajasthan: Use CGST + SGST, set IGST to 0
+          newSummary.cgst = formatTaxAmount(plan.cgst || 0, invoiceData.currency);
+          newSummary.sgst = formatTaxAmount(plan.sgst || 0, invoiceData.currency);
+          newSummary.igst = formatTaxAmount(0, invoiceData.currency);
+        } else if (taxType === 'other_state' && 'igst' in plan) {
+          // Other State: Use IGST, set CGST + SGST to 0
+          newSummary.cgst = formatTaxAmount(0, invoiceData.currency);
+          newSummary.sgst = formatTaxAmount(0, invoiceData.currency);
+          newSummary.igst = formatTaxAmount(plan.igst || 0, invoiceData.currency);
+        } else if (taxType === 'no_tax') {
+          // No Tax: Set all to 0 and total = discount price or base price
+          newSummary.cgst = formatTaxAmount(0, invoiceData.currency);
+          newSummary.sgst = formatTaxAmount(0, invoiceData.currency);
+          newSummary.igst = formatTaxAmount(0, invoiceData.currency);
+          
+          // Set total to discount price (for discounted plans) or base price (for regular plans)
+          if ('isDiscounted' in plan && plan.isDiscounted && plan.discountPrice) {
+            newSummary.total = plan.discountPrice;
+          } else if ('basePrice' in plan) {
+            newSummary.total = plan.basePrice;
+          }
+        }
+        
+        return { ...prev, summary: newSummary };
+      });
+    }
   };
 
   const handleItemChange = (id: number, field: string, value: any) => {
@@ -565,7 +644,7 @@ const InvoiceForm: React.FC<InvoiceFormProps> = ({
                         name="taxType"
                         value="rajasthan"
                         checked={invoiceData.summary.taxType === 'rajasthan'}
-                        onChange={(e) => handleChange('summary', 'taxType', e.target.value)}
+                        onChange={(e) => handleTaxTypeChange(e.target.value)}
                         className="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 focus:ring-blue-500"
                       />
                       <label htmlFor="rajasthan" className="ml-2 text-sm text-gray-900">
@@ -581,7 +660,7 @@ const InvoiceForm: React.FC<InvoiceFormProps> = ({
                         name="taxType"
                         value="other_state"
                         checked={invoiceData.summary.taxType === 'other_state'}
-                        onChange={(e) => handleChange('summary', 'taxType', e.target.value)}
+                        onChange={(e) => handleTaxTypeChange(e.target.value)}
                         className="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 focus:ring-blue-500"
                       />
                       <label htmlFor="other_state" className="ml-2 text-sm text-gray-900">
@@ -597,7 +676,7 @@ const InvoiceForm: React.FC<InvoiceFormProps> = ({
                         name="taxType"
                         value="no_tax"
                         checked={invoiceData.summary.taxType === 'no_tax'}
-                        onChange={(e) => handleChange('summary', 'taxType', e.target.value)}
+                        onChange={(e) => handleTaxTypeChange(e.target.value)}
                         className="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 focus:ring-blue-500"
                       />
                       <label htmlFor="no_tax" className="ml-2 text-sm text-gray-900">

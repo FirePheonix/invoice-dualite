@@ -8,6 +8,10 @@ export interface PlanRegularINR {
   hsnSac?: string;
   gstRate?: string;
   basePrice: number;
+  originalPrice?: number; // Original price before discount
+  discountPrice?: number; // Discounted price
+  isDiscounted?: boolean; // Whether this plan has a discount
+  discountPercentage?: number; // Discount percentage
   igst?: number;
   cgst?: number;
   sgst?: number;
@@ -34,7 +38,27 @@ export const PLAN_REGULAR_INR: PlanRegularINR[] = [
   },
   {
     id: 'launch-monthly',
-    name: 'Launch Monthly',
+    name: 'Launch Monthly Discounted',
+    description: 'Dualite Alpha Pro PLan',
+    subscription: 'Launch-Monthly',
+    period: '3 October, 2025 to 3 November, 2025',
+    features: ['Unlimited messages', 'Figma Import', 'Github Import', 'Dedicated Manager'],
+    hsnSac: '998313',
+    gstRate: 'NA',
+    originalPrice: 6779,
+    discountPrice: 4235,
+    basePrice: 4235,
+    isDiscounted: true,
+    discountPercentage: 97,
+    igst: 764,
+    cgst: 382,
+    sgst: 382,
+    total: 4999,
+    taxApplicable: true
+  },
+  {
+    id: 'pro-Launch-advanced',
+    name: 'Launch Monthly Advanced',
     description: 'Dualite Alpha Pro Plan',
     subscription: 'Launch-Monthly',
     period: '',
@@ -46,22 +70,6 @@ export const PLAN_REGULAR_INR: PlanRegularINR[] = [
     cgst: 534,
     sgst: 534,
     total: 6999,
-    taxApplicable: true
-  },
-  {
-    id: 'pro-monthly-discounted',
-    name: 'Pro Monthly (Discounted)',
-    description: 'Dualite Alpha Pro Plan',
-    subscription: 'Pro-Monthly',
-    period: '',
-    features: ['Unlimited messages', 'Figma Import', 'Github Import', 'Dedicated Manager'],
-    hsnSac: '998313',
-    gstRate: 'NA',
-    basePrice: 4345,
-    igst: 764,
-    cgst: 382,
-    sgst: 382,
-    total: 4999,
     taxApplicable: true
   }
 ];
