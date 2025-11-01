@@ -21,6 +21,7 @@ const InvoiceForm: React.FC<InvoiceFormProps> = ({
   onServiceTypeChange 
 }) => {
   const [internalServiceType, setInternalServiceType] = React.useState<'regular' | 'figma'>('regular');
+  const [selectedPlanId, setSelectedPlanId] = React.useState<string>('');
   
   // Use external service type if provided, otherwise use internal
   const serviceType = externalServiceType || internalServiceType;
@@ -32,6 +33,8 @@ const InvoiceForm: React.FC<InvoiceFormProps> = ({
     } else {
       setInternalServiceType('regular');
     }
+    // Clear selected plan when currency or invoice type changes
+    setSelectedPlanId('');
   }, [invoiceData.currency, invoiceData.type, onServiceTypeChange]);
   
   // Get current plan based on the first item's rate and description
@@ -55,8 +58,11 @@ const InvoiceForm: React.FC<InvoiceFormProps> = ({
     }
     
     // Clear current plan selection when switching service types
+    setSelectedPlanId('');
     if (invoiceData.items[0]) {
+      // Reset the first item price and amount when switching service types so preview updates predictably
       handleItemChange(invoiceData.items[0].id, 'rate', 0);
+      handleItemChange(invoiceData.items[0].id, 'amount', 0);
       handleItemChange(invoiceData.items[0].id, 'description', 'Select a plan');
       // Reset tax settings
       handleChange('summary', 'applyTax', false);
@@ -64,8 +70,11 @@ const InvoiceForm: React.FC<InvoiceFormProps> = ({
     }
   };
 
-  // Recalculate totals whenever items or tax settings change
+  // Only recalculate totals when manually editing items (not when using plan selection)
   React.useEffect(() => {
+    // Skip automatic recalculation if we have a selected plan - use plan values instead
+    if (selectedPlanId) return;
+
     const updatedItems = invoiceData.items.map(item => ({
       ...item,
       amount: item.qty * item.rate,
@@ -111,46 +120,80 @@ const InvoiceForm: React.FC<InvoiceFormProps> = ({
     invoiceData.summary.taxType,
     currentPlan?.id,
     invoiceData.currency,
-    onDataChange
+    onDataChange,
+    selectedPlanId  // Add selectedPlanId to dependencies so it skips when plan is selected
   ]);
 
   // Handle plan selection
   const handlePlanSelection = (planId: string, type: 'plan' | 'addon') => {
-    if (planId) {
-      const plan = getPlanById(planId, type, serviceType, invoiceData.currency);
-      if (plan) {
-        const firstItemId = invoiceData.items[0]?.id || 1;
-        handleItemChange(firstItemId, 'rate', plan.basePrice);
-        handleItemChange(firstItemId, 'description', plan.description);
-        
-        // Update all fields from plan data
-        if ('subscription' in plan && plan.subscription) {
-          handleItemChange(firstItemId, 'subscription', plan.subscription);
-        }
-        if ('period' in plan && plan.period) {
-          handleItemChange(firstItemId, 'period', plan.period);
-        }
-        if ('features' in plan && plan.features) {
-          handleItemChange(firstItemId, 'features', plan.features);
-        }
-        if ('hsnSac' in plan && plan.hsnSac) {
-          handleItemChange(firstItemId, 'hsnSac', plan.hsnSac);
-        }
-        if ('gstRate' in plan && plan.gstRate) {
-          handleItemChange(firstItemId, 'gstRate', plan.gstRate);
-        }
-        
-        // Set tax applicability based on plan
-        if ('taxApplicable' in plan) {
-          handleChange('summary', 'applyTax', plan.taxApplicable);
-          if (plan.taxApplicable) {
-            handleChange('summary', 'taxType', 'rajasthan'); // Default to Rajasthan
-          } else {
-            handleChange('summary', 'taxType', 'no_tax');
-          }
-        }
-      }
+    if (!planId) {
+      setSelectedPlanId('');
+      return;
     }
+
+    const plan = getPlanById(planId, type, serviceType, invoiceData.currency);
+    if (!plan) return;
+
+    // Update selected plan state so dropdown shows the selection
+    setSelectedPlanId(planId);
+
+    // Update the first item and summary in a single onDataChange call with values directly from plan
+    onDataChange(prev => {
+      const firstItemId = prev.items[0]?.id ?? 1;
+      const newItems = prev.items.map(item => {
+        if (item.id !== firstItemId) return item;
+
+        const qty = item.qty || 1;
+        const rate = plan.basePrice ?? item.rate;
+        
+        // For tax-applicable plans (INR), use the plan's total as amount, otherwise use qty * rate
+        let amount = qty * rate;
+        if ('total' in plan && plan.total && 'taxApplicable' in plan && plan.taxApplicable) {
+          amount = plan.total; // Use the total from plan data (includes tax calculations)
+        }
+
+        return {
+          ...item,
+          rate,
+          amount,
+          description: plan.description ?? item.description,
+          subscription: 'subscription' in plan ? (plan.subscription ?? item.subscription) : item.subscription,
+          period: 'period' in plan ? (plan.period ?? item.period) : item.period,
+          features: 'features' in plan ? (plan.features ?? item.features) : item.features,
+          hsnSac: 'hsnSac' in plan ? (plan.hsnSac ?? item.hsnSac) : item.hsnSac,
+          gstRate: 'gstRate' in plan ? (plan.gstRate ?? item.gstRate) : item.gstRate,
+        };
+      });
+
+      // Update summary with values directly from plan data
+      const newSummary = { ...prev.summary };
+      
+      if ('basePrice' in plan) {
+        newSummary.grossAmount = plan.basePrice;
+      }
+      if ('cgst' in plan) {
+        newSummary.cgst = formatTaxAmount(plan.cgst || 0, invoiceData.currency);
+      }
+      if ('sgst' in plan) {
+        newSummary.sgst = formatTaxAmount(plan.sgst || 0, invoiceData.currency);
+      }
+      if ('igst' in plan) {
+        newSummary.igst = formatTaxAmount(plan.igst || 0, invoiceData.currency);
+      }
+      if ('total' in plan) {
+        newSummary.total = plan.total;
+      }
+      if ('taxApplicable' in plan) {
+        newSummary.applyTax = plan.taxApplicable;
+        newSummary.taxType = plan.taxApplicable ? 'rajasthan' : 'no_tax';
+      }
+
+      return { 
+        ...prev, 
+        items: newItems,
+        summary: newSummary
+      };
+    });
   };
 
   const handleChange = (section: keyof InvoiceData, field: string, value: any) => {
@@ -330,7 +373,7 @@ const InvoiceForm: React.FC<InvoiceFormProps> = ({
               <select 
                 className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
                 onChange={(e) => handlePlanSelection(e.target.value, 'plan')}
-                value={currentPlan?.id || ''}
+                value={selectedPlanId}
               >
                 <option value="">Select a plan...</option>
                 {getAvailablePlans('plan', serviceType, invoiceData.currency).map((plan) => (
@@ -355,7 +398,7 @@ const InvoiceForm: React.FC<InvoiceFormProps> = ({
               <select 
                 className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
                 onChange={(e) => handlePlanSelection(e.target.value, 'addon')}
-                value={currentPlan?.id || ''}
+                value={selectedPlanId}
               >
                 <option value="">Select an add-on...</option>
                 {getAvailablePlans('addon', serviceType, invoiceData.currency).map((plan) => (
