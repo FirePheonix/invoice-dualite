@@ -249,8 +249,10 @@ const InvoiceForm: React.FC<InvoiceFormProps> = ({
     handleChange('summary', 'taxType', taxType);
     
     // If we have a selected plan, update taxes based on the new tax type
-    if (selectedPlanId && currentPlan && 'taxApplicable' in currentPlan && currentPlan.taxApplicable) {
-      const plan = currentPlan;
+    if (selectedPlanId) {
+      // Get the plan directly using selectedPlanId to ensure we have the correct plan
+      const plan = getPlanById(selectedPlanId, invoiceData.type, serviceType, invoiceData.currency);
+      if (!plan || !('taxApplicable' in plan) || !plan.taxApplicable) return;
       
       onDataChange(prev => {
         const newSummary = { ...prev.summary, taxType: taxType as 'rajasthan' | 'other_state' | 'no_tax' };
