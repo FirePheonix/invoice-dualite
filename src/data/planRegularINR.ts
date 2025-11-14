@@ -57,7 +57,7 @@ export const PLAN_REGULAR_INR: PlanRegularINR[] = [
     taxApplicable: true
   },
   {
-    id: 'pro-Launch-advanced',
+    id: 'pro-Launch-advanced-discounted',
     name: 'Launch Monthly Advanced',
     description: 'Dualite Alpha Pro Plan',
     subscription: 'Launch-Monthly',
@@ -70,6 +70,22 @@ export const PLAN_REGULAR_INR: PlanRegularINR[] = [
     cgst: 534,
     sgst: 534,
     total: 6999,
+    taxApplicable: true
+  },
+  {
+    id: 'pro-Launch-advanced',
+    name: 'Launch Monthly',
+    description: 'Dualite Alpha Pro Plan',
+    subscription: 'Launch-Monthly',
+    period: '',
+    features: ['Unlimited messages', 'Figma Import', 'Github Import', 'Dedicated Manager'],
+    hsnSac: '998313',
+    gstRate: 'NA',
+    basePrice: 6779,
+    igst: 1220,
+    cgst: 610,
+    sgst: 610,
+    total: 7999,
     taxApplicable: true
   }
 ];
